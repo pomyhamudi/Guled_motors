@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Contact GULED MOTORS | Nairobi{% endblock %}
+{% block content %}
+<section class="page-hero page-hero-contact"><div class="page-hero-inner"><span class="eyebrow eyebrow-light">WE ARE HERE FOR YOU</span><h1>Let's talk<br>about your <em>next drive.</em></h1></div></section>
+<section class="contact-layout section">
+  <div class="contact-copy"><span class="eyebrow">A REAL PERSON, ALWAYS</span><h2>Tell us what<br>you have in mind.</h2><p>Looking for something specific, curious about a car, or simply ready for a conversation? We would love to hear from you.</p>
+    <div class="contact-info"><div><span>CALL OUR TEAM</span><a href="tel:+254792194284">+254 792 194 284</a></div><div><span>WRITE TO US</span><a href="mailto:hello@guledmotors.co.ke">hello@guledmotors.co.ke</a></div><div><span>COME VISIT</span><p>Ngong Road, Nairobi, Kenya<br>Mon – Sat · 9:00 am – 6:00 pm</p></div></div>
+    <a class="button button-whatsapp" href="https://wa.me/254792194284?text=Hello%20GULED%20MOTORS" target="_blank" rel="noopener noreferrer">◉ Chat with us on WhatsApp ↗</a>
+  </div>
+  <form class="contact-form" method="post" action="{{ url_for('contact') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row"><label>Your name<input name="name" autocomplete="name" value="{{ form.get('name', '') }}" required></label><label>Email address<input name="email" type="email" autocomplete="email" value="{{ form.get('email', '') }}" required></label></div>
+    <div class="form-row"><label>Phone number<input name="phone" type="tel" autocomplete="tel" value="{{ form.get('phone', '') }}" required></label><label>Car of interest<input name="car_interest" value="{{ form.get('car_interest', request.args.get('car', '')) }}" placeholder="Make or model"></label></div>
+    <label>Your message<textarea name="message" rows="5" required>{{ form.get('message', '') }}</textarea></label>
+    <button class="button button-gold" type="submit">Send your enquiry <span>↗</span></button>
+  </form>
+</section>
+<section class="map-placeholder"><div class="map-card"><span class="map-pin">✦</span><h3>GULED MOTORS</h3><p>Ngong Road, Nairobi, Kenya</p><a class="text-link" href="https://maps.google.com/?q=Ngong+Road+Nairobi+Kenya" target="_blank" rel="noopener noreferrer">Open in Google Maps ↗</a></div></section>
+{% endblock %}

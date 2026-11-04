@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block body_class %}admin-page{% endblock %}
+{% block title %}Admin Dashboard | GULED MOTORS{% endblock %}
+{% block content %}
+<section class="admin-section section">
+  <div class="admin-heading"><div><span class="eyebrow">GULED MOTORS · STAFF</span><h1>Dashboard</h1></div><form method="post" action="{{ url_for('admin_logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button-dark" type="submit">Sign out</button></form></div>
+  <section class="admin-panel"><div class="admin-panel-heading"><div><span class="eyebrow">THE COLLECTION</span><h2>Add a vehicle</h2></div></div>
+    <form class="admin-car-form" method="post" action="{{ url_for('add_car') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Make<input name="brand" required></label><label>Model<input name="name" required></label><label>Year<input name="year" type="number" min="1900" max="2100" required></label>
+      <label>Price (KES)<input name="price" type="number" min="0" required></label><label>Mileage (km)<input name="mileage" type="number" min="0" required></label>
+      <label>Transmission<select name="transmission"><option>Automatic</option><option>Manual</option></select></label>
+      <label>Fuel<select name="fuel"><option>Petrol</option><option>Diesel</option><option>Hybrid</option><option>Electric</option></select></label>
+      <label>Availability<select name="availability"><option>Available</option><option>Reserved</option><option>Sold</option></select></label>
+      <label class="admin-wide">Engine<input name="engine" required></label><label class="admin-wide">Description<textarea name="description" rows="3" required></textarea></label>
+      <label class="admin-wide">Cover image<input name="image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"><small>JPG, PNG or WebP · maximum 8 MB</small></label>
+      <label class="admin-wide">Or image URL<input name="image_url" type="url" placeholder="https://..."></label>
+      <label class="admin-wide">Additional gallery images<input name="gallery_images" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple></label>
+      <label class="admin-wide">Interior features<input name="interior_features" placeholder="Leather seats, panoramic roof..." required></label>
+      <label class="admin-wide">Exterior features<input name="exterior_features" placeholder="Alloy wheels, LED lights..." required></label>
+      <button class="button button-gold admin-wide" type="submit">Add vehicle to collection ↗</button>
+    </form>
+  </section>
+  <section class="admin-panel"><div class="admin-panel-heading"><div><span class="eyebrow">LIVE INVENTORY</span><h2>Manage vehicles <small>({{ cars|length }})</small></h2></div></div>
+    <div class="admin-listings">{% for car in cars %}<details class="admin-car"><summary><img src="{{ car.image_url }}" alt=""><span><b>{{ car.brand }} {{ car.name }}</b><small>{{ car.year }} · KES {{ "{:,.0f}".format(car.price) }} · {{ car.availability }}</small></span><span class="admin-edit-label">Edit listing⌄</span></summary>
+      <form class="admin-car-form admin-edit-form" method="post" action="{{ url_for('edit_car', car_id=car.id) }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Make<input name="brand" value="{{ car.brand }}" required></label><label>Model<input name="name" value="{{ car.name }}" required></label><label>Year<input name="year" type="number" value="{{ car.year }}" required></label><label>Price (KES)<input name="price" type="number" value="{{ car.price }}" required></label><label>Mileage (km)<input name="mileage" type="number" value="{{ car.mileage }}" required></label>
+        <label>Transmission<select name="transmission"><option {% if car.transmission == "Automatic" %}selected{% endif %}>Automatic</option><option {% if car.transmission == "Manual" %}selected{% endif %}>Manual</option></select></label>
+        <label>Fuel<select name="fuel">{% for fuel in ["Petrol", "Diesel", "Hybrid", "Electric"] %}<option {% if car.fuel == fuel %}selected{% endif %}>{{ fuel }}</option>{% endfor %}</select></label>
+        <label>Availability<select name="availability">{% for status in ["Available", "Reserved", "Sold"] %}<option {% if car.availability == status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select></label>
+        <label class="admin-wide">Engine<input name="engine" value="{{ car.engine }}" required></label><label class="admin-wide">Description<textarea name="description" rows="3" required>{{ car.description }}</textarea></label>
+        <label class="admin-wide">Replace cover image<input name="image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"></label>
+        <label class="admin-wide">Or image URL<input name="image_url" type="url" placeholder="Leave blank to keep current image"></label>
+        <label class="admin-wide">Replace gallery images<input name="gallery_images" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple><small>Leave blank to keep the current gallery.</small></label>
+        <label class="admin-wide">Interior features<input name="interior_features" value="{{ car.interior_features }}" required></label>
+        <label class="admin-wide">Exterior features<input name="exterior_features" value="{{ car.exterior_features }}" required></label>
+        <button class="button button-gold" type="submit">Save changes</button>
+      </form>
+      <form class="delete-form" method="post" action="{{ url_for('delete_car', car_id=car.id) }}" data-confirm="Delete this car listing? This cannot be undone."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button-danger" type="submit">Delete listing</button></form>
+    </details>{% else %}<p>No car listings yet.</p>{% endfor %}</div>
+  </section>
+  <section class="admin-panel"><div class="admin-panel-heading"><div><span class="eyebrow">CUSTOMER CARE</span><h2>Enquiries <small>({{ inquiries|length }})</small></h2></div></div>
+    {% for inquiry in inquiries %}<article class="inquiry-card"><div class="inquiry-heading"><div><h3>{{ inquiry.name }}</h3><span>{{ inquiry.created_at }}</span></div><a href="mailto:{{ inquiry.email }}">Reply ↗</a></div><p><a href="mailto:{{ inquiry.email }}">{{ inquiry.email }}</a> · <a href="tel:{{ inquiry.phone }}">{{ inquiry.phone }}</a></p>{% if inquiry.car_interest %}<p><b>Interested in:</b> {{ inquiry.car_interest }}</p>{% endif %}<p>{{ inquiry.message }}</p></article>{% else %}<p>No customer enquiries yet.</p>{% endfor %}
+  </section>
+</section>
+{% endblock %}

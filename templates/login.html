@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block body_class %}login-page{% endblock %}
+{% block title %}Admin Login | GULED MOTORS{% endblock %}
+{% block content %}
+<section class="login-section"><form class="login-card" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <span class="eyebrow">GULED MOTORS · STAFF</span><h1>Admin sign in</h1><p>Sign in to manage vehicle listings and customer enquiries.</p>
+  <label>Username<input name="username" autocomplete="username" required autofocus></label>
+  <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+  <button class="button button-gold" type="submit">Sign in <span>↗</span></button>
+</form></section>
+{% endblock %}

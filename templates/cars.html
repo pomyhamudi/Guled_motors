@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Browse the Collection | GULED MOTORS{% endblock %}
+{% block content %}
+<section class="page-hero page-hero-collection"><div class="page-hero-inner"><span class="eyebrow eyebrow-light">THOUGHTFULLY CHOSEN</span><h1>The collection.</h1><p>Find your next exceptional drive.</p></div></section>
+<section class="section collection-section">
+  <form class="filter-form" method="get" action="{{ url_for('cars') }}">
+    <label class="filter-search">Search<input type="search" name="search" placeholder="Make or model" value="{{ filters.search }}"></label>
+    <label>Make<select name="brand"><option value="">All makes</option>{% for brand in brands %}<option value="{{ brand.brand }}" {% if filters.brand == brand.brand %}selected{% endif %}>{{ brand.brand }}</option>{% endfor %}</select></label>
+    <label>Max. price (KES)<input type="number" min="0" step="100000" name="max_price" placeholder="Any price" value="{{ filters.max_price }}"></label>
+    <label>Year<input type="number" min="1900" max="2100" name="year" placeholder="Any year" value="{{ filters.year }}"></label>
+    <label>Transmission<select name="transmission"><option value="">Any</option>{% for option in ["Automatic", "Manual"] %}<option {% if filters.transmission == option %}selected{% endif %}>{{ option }}</option>{% endfor %}</select></label>
+    <label>Fuel<select name="fuel"><option value="">Any</option>{% for option in ["Petrol", "Diesel", "Hybrid", "Electric"] %}<option {% if filters.fuel == option %}selected{% endif %}>{{ option }}</option>{% endfor %}</select></label>
+    <div class="filter-actions"><button class="button button-dark" type="submit">Find a car <span>↗</span></button><a class="text-link" href="{{ url_for('cars') }}">Clear filters</a></div>
+  </form>
+  <div class="collection-results"><p>{{ cars|length }} exceptional {{ "vehicle" if cars|length == 1 else "vehicles" }}</p></div>
+  <div class="car-grid">{% for car in cars %}{% include "_car_card.html" %}{% else %}<div class="empty-state"><h2>No cars found.</h2><p>Try adjusting your filters or get in touch and we will help you find the right car.</p><a class="text-link" href="{{ url_for('contact') }}">Speak with our team ↗</a></div>{% endfor %}</div>
+</section>
+{% endblock %}

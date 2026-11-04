@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block body_class %}detail-page{% endblock %}
+{% block title %}{{ car.year }} {{ car.brand }} {{ car.name }} | GULED MOTORS{% endblock %}
+{% block content %}
+<section class="detail-top"><a class="text-link" href="{{ url_for('cars') }}">← Back to collection</a><span class="eyebrow">{{ car.brand }} · {{ car.year }}</span></section>
+<section class="detail-layout">
+  <div class="detail-gallery"><img class="detail-main-image" src="{{ car.image_url }}" alt="{{ car.year }} {{ car.brand }} {{ car.name }}">{% for image in gallery %}<img src="{{ image }}" alt="{{ car.brand }} {{ car.name }} gallery image" loading="lazy">{% endfor %}</div>
+  <aside class="detail-sidebar"><span class="eyebrow">{{ car.brand }}</span><h1>{{ car.name }}</h1><p class="detail-year">{{ car.year }} · {{ car.availability }}</p><p class="detail-price">KES {{ "{:,.0f}".format(car.price) }}</p><p class="detail-description">{{ car.description }}</p>
+    <div class="detail-specs"><div><span>Engine</span><b>{{ car.engine }}</b></div><div><span>Mileage</span><b>{{ "{:,.0f}".format(car.mileage) }} km</b></div><div><span>Transmission</span><b>{{ car.transmission }}</b></div><div><span>Fuel type</span><b>{{ car.fuel }}</b></div><div><span>Year</span><b>{{ car.year }}</b></div><div><span>Availability</span><b>{{ car.availability }}</b></div></div>
+    <div class="feature-lists"><div><span class="eyebrow">INTERIOR</span><p>{{ car.interior_features or "Contact our team for interior details." }}</p></div><div><span class="eyebrow">EXTERIOR</span><p>{{ car.exterior_features or "Contact our team for exterior details." }}</p></div></div>
+    <div class="detail-actions"><a class="button button-gold" href="{{ url_for('contact', car=car.brand ~ ' ' ~ car.name) }}">Enquire about this car ↗</a><a class="button button-dark" href="{{ url_for('contact', car=car.brand ~ ' ' ~ car.name, subject='test-drive') }}">Book a test drive</a></div>
+    <p class="detail-note">Our team can arrange a private viewing and provide a complete vehicle history.</p>
+  </aside>
+</section>
+{% endblock %}

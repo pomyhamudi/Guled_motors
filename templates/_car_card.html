@@ -1,0 +1,12 @@
+<article class="car-card">
+  <a class="car-image" href="{{ url_for('car_details', car_id=car.id) }}">
+    <img src="{{ car.image_url }}" alt="{{ car.year }} {{ car.brand }} {{ car.name }}" loading="lazy">
+    <span class="image-tag">{{ car.year }}</span>
+  </a>
+  <div class="car-card-body">
+    <div class="car-title-row"><div><span class="eyebrow">{{ car.brand }}</span><h3>{{ car.name }}</h3></div><span class="availability-dot" aria-label="Available"></span></div>
+    <p class="car-price">KES {{ "{:,.0f}".format(car.price) }}</p>
+    <div class="car-specs"><span>◷ {{ "{:,.0f}".format(car.mileage) }} km</span><span>⇄ {{ car.transmission }}</span><span>◈ {{ car.fuel }}</span></div>
+    <a class="text-link" href="{{ url_for('car_details', car_id=car.id) }}">View details <span>↗</span></a>
+  </div>
+</article>
