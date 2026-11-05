@@ -16,6 +16,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_from_directory,
     session,
     url_for,
 )
@@ -23,8 +24,10 @@ from werkzeug.utils import secure_filename
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DATABASE = BASE_DIR / "database.db"
-UPLOAD_FOLDER = BASE_DIR / "static" / "uploads"
+DATABASE = Path(os.environ.get("DATABASE_PATH", BASE_DIR / "database.db"))
+UPLOAD_FOLDER = Path(
+    os.environ.get("UPLOAD_FOLDER", BASE_DIR / "static" / "uploads")
+)
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 
 app = Flask(__name__)
@@ -178,7 +181,7 @@ def save_uploaded_image(image):
         abort(400, description="Images must be JPG, PNG or WebP.")
     new_name = f"{uuid4().hex}.{extension}"
     image.save(UPLOAD_FOLDER / new_name)
-    return f"/static/uploads/{new_name}"
+    return f"/uploads/{new_name}"
 
 
 def save_uploaded_images(images):
@@ -193,12 +196,17 @@ def save_uploaded_images(images):
 def remove_uploaded_images(image_paths):
     upload_directory = UPLOAD_FOLDER.resolve()
     for image_path in image_paths:
-        if not image_path.startswith("/static/uploads/"):
+        if not image_path.startswith(("/uploads/", "/static/uploads/")):
             continue
         filename = image_path.rsplit("/", 1)[-1]
         stored_path = (upload_directory / filename).resolve()
         if stored_path.parent == upload_directory and stored_path.is_file():
             stored_path.unlink()
+
+
+@app.route("/uploads/<path:filename>")
+def uploaded_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 
 def car_form_values():
