@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=2) }}">
   <script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -22,6 +22,13 @@
       <a href="{{ url_for('home') }}">Home</a><a href="{{ url_for('cars') }}">Browse Cars</a>
       <a href="{{ url_for('about') }}">About Us</a><a href="{{ url_for('home') }}#services">Services</a>
       <a href="{{ url_for('contact') }}">Contact</a>
+      {% if current_customer %}
+        <a href="{{ url_for('customer_account') }}">My account</a>
+        <form class="nav-logout" method="post" action="{{ url_for('customer_logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Log out</button></form>
+      {% else %}
+        <a href="{{ url_for('customer_login') }}">Log in</a>
+        <a href="{{ url_for('customer_register') }}">Sign up</a>
+      {% endif %}
       <a class="button button-gold nav-cta" href="{{ url_for('cars') }}">Explore Cars <span>↗</span></a>
     </nav>
   </header>
@@ -40,11 +47,11 @@
     </div>
     <div class="footer-bottom"><span>© {{ current_year }} GULED MOTORS Kenya. All rights reserved.</span><a href="{{ url_for('admin_login') }}">Admin access</a><span>Made for the journey ahead.</span></div>
   </footer>
-  <button class="chat-launcher" aria-label="Talk to me">✦ <span>Talk to me?</span></button>
-  <section class="chat-panel" aria-label="GULED MOTORS FAQ assistant" hidden>
+  <button class="chat-launcher" aria-label="Chat with Guled Motors">✦ <span>Chat with us</span></button>
+  <section class="chat-panel" aria-label="GULED MOTORS customer assistant" hidden>
     <div class="chat-heading"><div><strong>GULED MOTORS concierge</strong><small>Quick answers, whenever you need them</small></div><button class="chat-close" aria-label="Close chat">×</button></div>
-    <div class="chat-messages" aria-live="polite"><div class="chat-message bot-message">Welcome. Ask me about our cars, test drives, financing or location.</div></div>
-    <form class="chat-form"><input name="question" placeholder="Ask us anything..." autocomplete="off" aria-label="Your question" required><button aria-label="Send message">↑</button></form>
+    <div class="chat-messages" aria-live="polite"><div class="chat-message bot-message">Welcome to Guled Motors. I can help with our current vehicles, listed prices and specifications, or pass your enquiry to our sales team.</div></div>
+    <form class="chat-form" data-csrf-token="{{ csrf_token() }}"><input name="question" placeholder="Ask about our vehicles..." autocomplete="off" aria-label="Your message" maxlength="500" required><button aria-label="Send message">↑</button></form>
   </section>
 </body>
 </html>

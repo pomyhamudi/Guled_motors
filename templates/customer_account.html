@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block body_class %}login-page{% endblock %}
+{% block title %}My Account | GULED MOTORS{% endblock %}
+{% block content %}
+<section class="login-section">
+  <div class="login-card account-card">
+    <span class="eyebrow">GULED MOTORS · CUSTOMER ACCOUNT</span>
+    <h1>Welcome, {{ customer.name }}</h1>
+    <p>You’re signed in with <strong>{{ customer.email }}</strong>. You can browse the collection and contact our sales team at any time, with or without an account.</p>
+    <a class="button button-gold" href="{{ url_for('cars') }}">Browse available cars <span>↗</span></a>
+    <form method="post" action="{{ url_for('customer_logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="button button-dark" type="submit">Log out</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -25,22 +25,51 @@ document.addEventListener("DOMContentLoaded", () => {
   const chatForm = document.querySelector(".chat-form");
   const chatMessages = document.querySelector(".chat-messages");
   if (launcher && panel && closeButton && chatForm && chatMessages) {
+    const input = chatForm.elements.question;
+    const sendButton = chatForm.querySelector("button");
+    const leadData = {};
+    let leadField = null;
     const setChatOpen = (isOpen) => {
       panel.hidden = !isOpen;
       launcher.hidden = isOpen;
-      if (isOpen) chatForm.elements.question.focus();
+      if (isOpen) input.focus();
     };
     launcher.addEventListener("click", () => setChatOpen(true));
     closeButton.addEventListener("click", () => setChatOpen(false));
-    chatForm.addEventListener("submit", (event) => {
+    chatForm.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const input = chatForm.elements.question;
       const question = input.value.trim();
       if (!question) return;
       appendMessage(question, "user-message");
-      appendMessage(getAnswer(question), "bot-message");
       input.value = "";
-      chatMessages.scrollTop = chatMessages.scrollHeight;
+      input.disabled = true;
+      sendButton.disabled = true;
+
+      if (leadField) leadData[leadField] = question;
+      try {
+        const response = await fetch("/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": chatForm.dataset.csrfToken,
+          },
+          body: JSON.stringify({ message: question, lead_data: { ...leadData } }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "The message could not be sent.");
+        appendMessage(result.reply, "bot-message");
+        leadField = result.lead_field || null;
+        if (result.complete) {
+          Object.keys(leadData).forEach((key) => delete leadData[key]);
+        }
+      } catch {
+        appendMessage("Sorry, I couldn’t send that just now. Please try again or call +254 792 194 284.", "bot-message");
+      } finally {
+        input.disabled = false;
+        sendButton.disabled = false;
+        input.focus();
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
     });
 
     function appendMessage(text, className) {
@@ -48,19 +77,6 @@ document.addEventListener("DOMContentLoaded", () => {
       message.className = `chat-message ${className}`;
       message.textContent = text;
       chatMessages.append(message);
-    }
-
-    function getAnswer(question) {
-      const text = question.toLowerCase();
-      if (/available|inventory|cars|collection|stock/.test(text)) return "Browse our current collection on the Browse Cars page. Our team can also source a specific make or model for you.";
-      if (/price|cost|kes|how much/.test(text)) return "Each vehicle's price is listed on its details page. For a tailored quote or current availability, call +254 792 194 284.";
-      if (/spec|engine|mileage|transmission|fuel/.test(text)) return "Open any car's details page to see its engine, mileage, transmission, fuel type and full description.";
-      if (/test.?drive|drive|viewing/.test(text)) return "We would be delighted to arrange a private viewing or test drive. Send us an enquiry on the Contact page or WhatsApp +254 792 194 284.";
-      if (/financ|loan|payment|installment/.test(text)) return "We offer car financing assistance and can connect you with suitable finance partners. Contact our team to discuss your options.";
-      if (/import|source|order/.test(text)) return "Our team can assist with sourcing and importing a vehicle. Tell us what you are looking for on the Contact page.";
-      if (/contact|phone|email|call|whatsapp/.test(text)) return "Call +254 792 194 284, email hello@guledmotors.co.ke, or message us on WhatsApp from the Contact page.";
-      if (/where|location|address|visit|hours/.test(text)) return "Visit us on Ngong Road, Nairobi. We are open Monday to Saturday, 9:00 am–6:00 pm.";
-      return "I can help with available cars, prices, specifications, test drives, financing, importation and our location. What would you like to know?";
     }
   }
 

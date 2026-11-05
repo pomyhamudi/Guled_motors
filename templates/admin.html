@@ -41,7 +41,7 @@
     </details>{% else %}<p>No car listings yet.</p>{% endfor %}</div>
   </section>
   <section class="admin-panel"><div class="admin-panel-heading"><div><span class="eyebrow">CUSTOMER CARE</span><h2>Enquiries <small>({{ inquiries|length }})</small></h2></div></div>
-    {% for inquiry in inquiries %}<article class="inquiry-card"><div class="inquiry-heading"><div><h3>{{ inquiry.name }}</h3><span>{{ inquiry.created_at }}</span></div><a href="mailto:{{ inquiry.email }}">Reply ↗</a></div><p><a href="mailto:{{ inquiry.email }}">{{ inquiry.email }}</a> · <a href="tel:{{ inquiry.phone }}">{{ inquiry.phone }}</a></p>{% if inquiry.car_interest %}<p><b>Interested in:</b> {{ inquiry.car_interest }}</p>{% endif %}<p>{{ inquiry.message }}</p></article>{% else %}<p>No customer enquiries yet.</p>{% endfor %}
+    {% for inquiry in inquiries %}<article class="inquiry-card"><div class="inquiry-heading"><div><h3>{{ inquiry.name }}</h3><span>{{ inquiry.created_at }}</span></div>{% if inquiry.email %}<a href="mailto:{{ inquiry.email }}">Reply ↗</a>{% else %}<span>Chat enquiry · call to follow up</span>{% endif %}</div><p>{% if inquiry.email %}<a href="mailto:{{ inquiry.email }}">{{ inquiry.email }}</a>{% else %}No email provided{% endif %} · <a href="tel:{{ inquiry.phone }}">{{ inquiry.phone }}</a></p>{% if inquiry.car_interest %}<p><b>Interested in:</b> {{ inquiry.car_interest }}</p>{% endif %}<p>{{ inquiry.message }}</p></article>{% else %}<p>No customer enquiries yet.</p>{% endfor %}
   </section>
 </section>
 {% endblock %}

@@ -1,6 +1,7 @@
 import hmac
 import json
 import os
+import re
 import secrets
 import sqlite3
 from datetime import date
@@ -20,6 +21,7 @@ from flask import (
     session,
     url_for,
 )
+from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 
@@ -97,6 +99,13 @@ def init_db():
             message TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL COLLATE NOCASE UNIQUE,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
         CREATE TABLE IF NOT EXISTS app_meta (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
@@ -141,13 +150,25 @@ def csrf_token():
 
 @app.context_processor
 def inject_template_values():
-    return {"csrf_token": csrf_token, "current_year": date.today().year}
+    customer_id = session.get("customer_id")
+    customer = None
+    if customer_id is not None:
+        customer = get_db().execute(
+            "SELECT id, name, email FROM customers WHERE id = ?", (customer_id,)
+        ).fetchone()
+    return {
+        "csrf_token": csrf_token,
+        "current_year": date.today().year,
+        "current_customer": customer,
+    }
 
 
 @app.before_request
 def protect_post_requests():
     if request.method == "POST":
-        supplied = request.form.get("csrf_token", "")
+        supplied = request.form.get("csrf_token") or request.headers.get(
+            "X-CSRF-Token", ""
+        )
         expected = session.get("_csrf_token", "")
         if not expected or not hmac.compare_digest(supplied, expected):
             abort(400, description="Your form session expired. Please refresh and try again.")
@@ -158,6 +179,16 @@ def admin_required(view):
     def wrapped_view(**kwargs):
         if not session.get("admin_logged_in"):
             return redirect(url_for("admin_login", next=request.path))
+        return view(**kwargs)
+
+    return wrapped_view
+
+
+def customer_required(view):
+    @wraps(view)
+    def wrapped_view(**kwargs):
+        if not session.get("customer_id"):
+            return redirect(url_for("customer_login"))
         return view(**kwargs)
 
     return wrapped_view
@@ -329,6 +360,309 @@ def contact():
         flash("Thank you. Our team will be in touch shortly.", "success")
         return redirect(url_for("contact"))
     return render_template("contact.html", form={})
+
+
+CHAT_LEAD_FIELDS = ("name", "vehicle", "budget", "phone", "payment_method")
+CHAT_LEAD_QUESTIONS = {
+    "name": "May I have your full name?",
+    "vehicle": "Which vehicle would you prefer? You can name a listed car or describe what you have in mind.",
+    "budget": "What budget range should we share with the sales team? Please include KSh.",
+    "phone": "What phone number should our sales team use to reach you?",
+    "payment_method": "Which payment method do you prefer? I’ll pass this preference to the team for confirmation.",
+}
+
+
+def chat_inventory_reply(message):
+    database = get_db()
+    all_cars = database.execute(
+        "SELECT * FROM cars ORDER BY created_at DESC, id DESC"
+    ).fetchall()
+    available_cars = [car for car in all_cars if car["availability"] == "Available"]
+    text = message.casefold()
+    matches = [
+        car
+        for car in all_cars
+        if car["brand"].casefold() in text or car["name"].casefold() in text
+    ]
+
+    if len(matches) > 1 and re.search(r"\b(compare|versus|vs)\b", text):
+        comparisons = "; ".join(
+            f"{car['brand']} {car['name']}: {car['availability'].lower()}, "
+            f"KSh {car['price']:,.0f}, {car['engine']}, "
+            f"{car['mileage']:,} km"
+            for car in matches[:3]
+        )
+        return f"Based on our current listings: {comparisons}."
+
+    if matches:
+        car = matches[0]
+        if car["availability"] != "Available":
+            return (
+                f"Our current listing shows the {car['brand']} {car['name']} as "
+                f"{car['availability'].lower()}, so I can’t confirm it is available. "
+                "Please contact our sales team for the latest update."
+            )
+        feature_details = ""
+        if re.search(r"\b(features?|equipment)\b", text):
+            feature_details = (
+                f" Interior features: {car['interior_features']}. "
+                f"Exterior features: {car['exterior_features']}."
+            )
+        return (
+            f"Our current listing shows the {car['brand']} {car['name']} as "
+            f"available at KSh {car['price']:,.0f}. It is a {car['year']} model "
+            f"with {car['mileage']:,} km, {car['transmission']} transmission, "
+            f"{car['fuel'].lower()} fuel and a {car['engine']} engine. "
+            f"{car['description']}{feature_details}"
+        )
+
+    budget_match = re.search(
+        r"(?:under|below|within|budget(?:\s+of)?|up\s+to)\s*(?:ksh\.?\s*)?"
+        r"([\d,]+(?:\.\d+)?)\s*(million|m|thousand|k)?",
+        text,
+    )
+    if budget_match:
+        amount = float(budget_match.group(1).replace(",", ""))
+        unit = (budget_match.group(2) or "").lower()
+        if unit in {"million", "m"}:
+            amount *= 1_000_000
+        elif unit in {"thousand", "k"}:
+            amount *= 1_000
+        suggestions = [car for car in available_cars if car["price"] <= amount]
+        if suggestions:
+            listings = "; ".join(
+                f"{car['brand']} {car['name']} — KSh {car['price']:,.0f}"
+                for car in suggestions[:5]
+            )
+            return f"Based on our current available listings, you could consider: {listings}."
+        return (
+            "I couldn’t find a currently available listing within that budget. "
+            "Our sales team can advise whether another option may suit you."
+        )
+
+    if re.search(r"\b(price|cost|how much|ksh|kes)\b", text):
+        return (
+            "Vehicle prices are shown in our current listings. Tell me the make or "
+            "model you’re interested in, or browse the Browse Cars page."
+        )
+    if re.search(r"\b(available|availability|inventory|cars|collection|stock)\b", text):
+        if not available_cars:
+            return "We don’t currently have any vehicles listed as available. Please contact our sales team to discuss your requirements."
+        listings = "; ".join(
+            f"{car['brand']} {car['name']} — KSh {car['price']:,.0f}"
+            for car in available_cars[:5]
+        )
+        more = " Browse Cars to see more." if len(available_cars) > 5 else ""
+        return f"Our current available listings include: {listings}.{more}"
+    if re.search(r"\b(spec|engine|mileage|transmission|fuel|features?)\b", text):
+        return (
+            "I can share specifications from a current listing. Which make or model "
+            "would you like to know about?"
+        )
+    if re.search(r"\b(financ\w*|loan|installments?|instalments?|payment terms)\b", text):
+        return (
+            "I can’t confirm financing options or payment terms. Our sales team can "
+            "discuss what may be available; call +254 792 194 284 or email "
+            "hello@guledmotors.co.ke."
+        )
+    if re.search(r"\b(where|location|address|visit|showroom)\b", text):
+        return (
+            "Our showroom is on Ngong Road, Nairobi. Please contact the team on "
+            "+254 792 194 284 to confirm visit arrangements."
+        )
+    if re.search(r"\b(contact|phone|email|call|whatsapp|test.?drive|viewing)\b", text):
+        return (
+            "Our sales team can help arrange a viewing or test drive. Call "
+            "+254 792 194 284 or email hello@guledmotors.co.ke."
+        )
+    return (
+        "I can help with current cars, listed prices and specifications, or pass "
+        "your request to our sales team. What would you like to know?"
+    )
+
+
+@app.post("/chat")
+def chat():
+    if not request.is_json:
+        abort(400, description="Chat messages must be sent as JSON.")
+    data = request.get_json()
+    message = data.get("message", "") if isinstance(data, dict) else ""
+    if not isinstance(message, str) or not message.strip() or len(message) > 500:
+        return {"error": "Please enter a message of 1 to 500 characters."}, 400
+    message = message.strip()
+
+    lead_step = session.get("chat_lead_step")
+    lead_data = data.get("lead_data", {})
+    if not isinstance(lead_data, dict):
+        lead_data = {}
+
+    if lead_step:
+        value = message.strip()
+        if lead_step == "name" and not 2 <= len(value) <= 100:
+            return {"reply": "Please enter your full name.", "lead_field": lead_step}
+        if lead_step == "vehicle" and len(value) > 120:
+            return {"reply": "Please enter a shorter vehicle preference.", "lead_field": lead_step}
+        if lead_step == "budget" and len(value) > 100:
+            return {"reply": "Please enter a shorter budget range.", "lead_field": lead_step}
+        if lead_step == "phone":
+            digits = re.sub(r"\D", "", value)
+            if not 7 <= len(digits) <= 15:
+                return {"reply": "Please enter a valid phone number.", "lead_field": lead_step}
+        if lead_step == "payment_method" and not 1 <= len(value) <= 100:
+            return {"reply": "Please enter a payment preference.", "lead_field": lead_step}
+
+        lead_data[lead_step] = value
+        next_index = CHAT_LEAD_FIELDS.index(lead_step) + 1
+        if next_index < len(CHAT_LEAD_FIELDS):
+            next_step = CHAT_LEAD_FIELDS[next_index]
+            session["chat_lead_step"] = next_step
+            return {
+                "reply": CHAT_LEAD_QUESTIONS[next_step],
+                "lead_field": next_step,
+            }
+
+        if not all(
+            isinstance(lead_data.get(field), str)
+            and lead_data[field].strip()
+            and len(lead_data[field]) <= 120
+            for field in CHAT_LEAD_FIELDS
+        ):
+            return {
+                "reply": "I couldn’t save those details. Please contact our sales team on +254 792 194 284.",
+                "lead_field": None,
+            }, 400
+        phone_digits = re.sub(r"\D", "", lead_data["phone"])
+        if not 7 <= len(phone_digits) <= 15:
+            session["chat_lead_step"] = "phone"
+            return {"reply": CHAT_LEAD_QUESTIONS["phone"], "lead_field": "phone"}
+
+        get_db().execute(
+            """INSERT INTO inquiries (name, email, phone, car_interest, message)
+            VALUES (?, ?, ?, ?, ?)""",
+            (
+                lead_data["name"].strip(),
+                "",
+                lead_data["phone"].strip(),
+                lead_data["vehicle"].strip(),
+                "Website chatbot sales enquiry. "
+                f"Budget: {lead_data['budget'].strip()}. "
+                f"Preferred payment method: {lead_data['payment_method'].strip()}.",
+            ),
+        )
+        get_db().commit()
+        session.pop("chat_lead_step", None)
+        return {
+            "reply": (
+                "Thank you. I’ve shared your enquiry with our sales team, who can "
+                "follow up using your phone number to discuss the vehicle, budget "
+                "and payment preference."
+            ),
+            "lead_field": None,
+            "complete": True,
+        }
+
+    if re.search(
+        r"\b(buy|purchase|interested|test.?drive|book|arrange|sales team|"
+        r"talk to|call me|contact me|enquir(?:y|ies)|inquiry)\b",
+        message,
+        re.IGNORECASE,
+    ):
+        session["chat_lead_step"] = "name"
+        return {"reply": CHAT_LEAD_QUESTIONS["name"], "lead_field": "name"}
+
+    return {"reply": chat_inventory_reply(message), "lead_field": None}
+
+
+@app.route("/account/register", methods=["GET", "POST"])
+def customer_register():
+    if session.get("customer_id"):
+        return redirect(url_for("customer_account"))
+    values = {"name": "", "email": ""}
+    if request.method == "POST":
+        values = {
+            "name": request.form.get("name", "").strip(),
+            "email": request.form.get("email", "").strip().casefold(),
+        }
+        password = request.form.get("password", "")
+        confirmation = request.form.get("password_confirmation", "")
+
+        if not 2 <= len(values["name"]) <= 100:
+            flash("Please enter your name (2 to 100 characters).", "error")
+        elif (
+            len(values["email"]) > 254
+            or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", values["email"])
+        ):
+            flash("Please enter a valid email address.", "error")
+        elif not 10 <= len(password) <= 128:
+            flash("Choose a password between 10 and 128 characters.", "error")
+        elif password != confirmation:
+            flash("The passwords do not match.", "error")
+        else:
+            try:
+                cursor = get_db().execute(
+                    """INSERT INTO customers (name, email, password_hash)
+                    VALUES (?, ?, ?)""",
+                    (
+                        values["name"],
+                        values["email"],
+                        generate_password_hash(password),
+                    ),
+                )
+                get_db().commit()
+            except sqlite3.IntegrityError:
+                flash("An account already uses that email. Please log in instead.", "error")
+            else:
+                session.clear()
+                session["customer_id"] = cursor.lastrowid
+                flash("Your Guled Motors account is ready.", "success")
+                return redirect(url_for("customer_account"))
+    return render_template("customer_register.html", form=values)
+
+
+@app.route("/account/login", methods=["GET", "POST"])
+def customer_login():
+    if session.get("customer_id"):
+        return redirect(url_for("customer_account"))
+    email = ""
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().casefold()
+        password = request.form.get("password", "")
+        customer = get_db().execute(
+            "SELECT id, password_hash FROM customers WHERE email = ?", (email,)
+        ).fetchone()
+        if (
+            customer
+            and len(password) <= 128
+            and check_password_hash(customer["password_hash"], password)
+        ):
+            session.clear()
+            session["customer_id"] = customer["id"]
+            flash("Welcome back to Guled Motors.", "success")
+            return redirect(url_for("customer_account"))
+        flash("We couldn’t sign you in with those details. Please check and try again.", "error")
+    return render_template("customer_login.html", email=email)
+
+
+@app.route("/account/logout", methods=["POST"])
+@customer_required
+def customer_logout():
+    session.clear()
+    flash("You have been signed out.", "success")
+    return redirect(url_for("home"))
+
+
+@app.route("/account")
+@customer_required
+def customer_account():
+    customer = get_db().execute(
+        "SELECT name, email, created_at FROM customers WHERE id = ?",
+        (session["customer_id"],),
+    ).fetchone()
+    if customer is None:
+        session.pop("customer_id", None)
+        flash("Please sign in to continue.", "error")
+        return redirect(url_for("customer_login"))
+    return render_template("customer_account.html", customer=customer)
 
 
 @app.route("/admin/login", methods=["GET", "POST"])

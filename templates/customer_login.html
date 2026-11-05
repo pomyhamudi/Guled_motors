@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block body_class %}login-page{% endblock %}
+{% block title %}Customer Log In | GULED MOTORS{% endblock %}
+{% block content %}
+<section class="login-section">
+  <form class="login-card" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <span class="eyebrow">WELCOME BACK</span>
+    <h1>Log in</h1>
+    <p>Sign in to your customer account. You can browse our vehicles without an account.</p>
+    <label>Email address<input name="email" type="email" value="{{ email }}" autocomplete="email" maxlength="254" required autofocus></label>
+    <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+    <button class="button button-gold" type="submit">Log in <span>↗</span></button>
+    <p class="account-switch">New to Guled Motors? <a href="{{ url_for('customer_register') }}">Create an account</a>.</p>
+  </form>
+</section>
+{% endblock %}

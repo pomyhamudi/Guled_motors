@@ -25,6 +25,10 @@ Visit [http://127.0.0.1:5000](http://127.0.0.1:5000). Sign in to the dashboard a
 
 The included Flask server is for local development. Use a production WSGI server and HTTPS when deploying. Set `FLASK_ENV=production` to enable secure session cookies.
 
+## Customer accounts
+
+Visitors can browse cars and contact the sales team without signing in. The **Log in** and **Sign up** links in the main navigation are for optional customer accounts; staff should continue to use the separate **Admin access** link in the footer. Customer passwords are stored as password hashes in the SQLite database, not as plain text.
+
 ## Deploy on Render
 
 1. Push this repository to GitHub.
@@ -39,20 +43,21 @@ The blueprint uses a paid Starter web service because SQLite data and uploaded i
 - **Edit a car:** Open its row in “Manage vehicles,” make changes, and save. Leave image fields empty to keep the current images.
 - **Change availability:** Set a listing to Available, Reserved or Sold. Only available vehicles appear in the public collection.
 - **Delete a car:** Open its row and use “Delete listing.”
-- **Review enquiries:** New contact-form submissions appear in the Enquiries section of the admin dashboard.
+- **Review enquiries:** Contact-form submissions and completed chatbot sales enquiries appear in the Enquiries section of the admin dashboard.
 - **Back up data:** Locally, stop the app and copy `database.db` and `static/uploads/`. On Render, back up the persistent disk mounted at `/var/data`, which contains the database and uploaded images.
 
-The app also initializes the database schema on startup. Sample vehicles are inserted once when the database is first created; deleting listings later will not restore them. Listings and enquiries are stored in SQLite. The FAQ chat is a small JavaScript-based helper, not an AI service.
+The app also initializes the database schema on startup. Sample vehicles are inserted once when the database is first created; deleting listings later will not restore them. Listings and enquiries are stored in SQLite. The customer chat is a rule-based helper, not an AI service: vehicle details and availability come from current inventory, and purchase enquiries are saved in the admin dashboard after the customer provides their name, preferred vehicle, budget, phone number and preferred payment method. Financing options and payment terms are not confirmed by the chat.
 
 ## Project layout
 
 ```text
-app.py                  Flask routes, SQLite setup, and admin actions
+app.py                  Flask routes, SQLite setup, chat replies, and admin actions
 render.yaml             Render web service and persistent disk configuration
 database.db             Created automatically on first run
 requirements.txt        Python dependencies
 templates/               Jinja templates for public and admin pages
+templates/customer_*.html Customer registration and account pages
 static/css/style.css     Responsive site styles
-static/js/script.js      Navigation, FAQ chat, and delete confirmation
+static/js/script.js     Navigation, inventory chat, and delete confirmation
 static/uploads/          Uploaded car images
 ```
